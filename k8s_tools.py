@@ -1,14 +1,10 @@
-import yaml
 import json
 from datetime import datetime
+
+import yaml
 from kubernetes import client, config
 from kubernetes.client.rest import ApiException
 from langchain_core.tools import tool
-# from mcp.server.fastmcp import FastMCP
-
-
-# Initialize FastMCP server
-# mcp = FastMCP("k8s")
 
 # Kubernetes client configuration
 try:
@@ -245,8 +241,8 @@ def list_services(namespace=None):
                     "namespace": service.metadata.namespace,
                     "type": service.spec.type,
                     "cluster_ip": service.spec.cluster_ip,
-                    "external_ip": service.spec.external_i_ps
-                    if hasattr(service.spec, "external_i_ps")
+                    "external_ip": service.spec.external_ips
+                    if hasattr(service.spec, "external_ips")
                     else None,
                     "ports": ports,
                     "selector": service.spec.selector,
@@ -754,9 +750,7 @@ def get_resource_yaml(namespace, resource_type, resource_name):
         elif resource_type == "job":
             resource_data = batch_v1.read_namespaced_job(resource_name, namespace)
         else:
-            return json.dumps(
-                {"error": f"Unsupported resource type: {resource_type}"}
-            )
+            return json.dumps({"error": f"Unsupported resource type: {resource_type}"})
 
         # Convert to dict and then to YAML
         resource_dict = client.ApiClient().sanitize_for_serialization(resource_data)
@@ -767,7 +761,6 @@ def get_resource_yaml(namespace, resource_type, resource_name):
         return json.dumps({"error": str(e)})
 
 
-# Helper function to format bytes into human-readable format
 def format_bytes(size):
     """
     Format bytes to human readable string.
@@ -789,8 +782,3 @@ def format_bytes(size):
         size /= power
         n += 1
     return f"{round(size, 2)} {power_labels[n]}"
-
-
-# if __name__ == "__main__":
-#     # # Initialize and run the server
-#     mcp.run(transport="stdio")

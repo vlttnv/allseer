@@ -1,23 +1,56 @@
+import sys
+from uuid import uuid4
+
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import HumanMessage, SystemMessage
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.prebuilt import create_react_agent
-from random import randint
 
-from k8s_tools import get_namespaces, list_pods, list_nodes, list_deployments, list_services, list_events, failed_pods, pending_pods, high_restart_pods, node_capacity, orphaned_resources, get_resource_yaml
+from k8s_tools import (
+    failed_pods,
+    get_namespaces,
+    get_resource_yaml,
+    high_restart_pods,
+    list_deployments,
+    list_events,
+    list_nodes,
+    list_pods,
+    list_services,
+    node_capacity,
+    orphaned_resources,
+    pending_pods,
+)
 
-# Create the agent
-memory = MemorySaver()
-model = ChatAnthropic(model_name="claude-3-7-sonnet-latest")
-tools = [get_namespaces, list_pods, list_nodes, list_deployments, list_services, list_events, failed_pods, pending_pods, high_restart_pods, node_capacity, orphaned_resources, get_resource_yaml]
-agent_executor = create_react_agent(model, tools, checkpointer=memory)
 
-# Create a chat loop
-def run_chat_agent():
+def create_agent():
     # Create the agent
-    # agent = create_agent()
-    config = {"configurable": {"thread_id": f"{randint(0, 100000)}"}}
-    print("Welcome to the Chat Agent! Type 'quit' to exit.")
+    memory = MemorySaver()
+    model = ChatAnthropic(model_name="claude-3-7-sonnet-latest")
+    tools = [
+        get_namespaces,
+        list_pods,
+        list_nodes,
+        list_deployments,
+        list_services,
+        list_events,
+        failed_pods,
+        pending_pods,
+        high_restart_pods,
+        node_capacity,
+        orphaned_resources,
+        get_resource_yaml,
+    ]
+    agent_executor = create_react_agent(model, tools, checkpointer=memory)
+
+    return agent_executor
+
+
+def run_chat_agent():
+    agent_executor = create_agent()
+    config = {"configurable": {"thread_id": uuid4()}}
+    print(
+        "Alsseer: an AI-powered diagnostics assistant for Kubernetes. Type 'quit' or 'Ctrl-C' to exit."
+    )
 
     user_input = input("You: ")
     system_prompt = (
@@ -29,11 +62,16 @@ def run_chat_agent():
     )
 
     for step in agent_executor.stream(
-            {"messages": [SystemMessage(content=system_prompt), HumanMessage(content=user_input)]},
-            config,
-            stream_mode="values",
-        ):
-            step["messages"][-1].pretty_print()
+        {
+            "messages": [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_input),
+            ]
+        },
+        config,
+        stream_mode="values",
+    ):
+        step["messages"][-1].pretty_print()
 
     # Chat loop
     while True:
@@ -41,7 +79,7 @@ def run_chat_agent():
         user_input = input("You: ")
 
         # Check for exit condition
-        if user_input.lower() == 'quit':
+        if user_input.lower() in ["quit", "exit"]:
             print("Goodbye!")
             break
 
@@ -55,4 +93,7 @@ def run_chat_agent():
 
 # Main execution
 if __name__ == "__main__":
-    run_chat_agent()
+    try:
+        run_chat_agent()
+    except KeyboardInterrupt:
+        sys.exit(0)

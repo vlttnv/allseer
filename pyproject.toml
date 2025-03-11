@@ -1,11 +1,22 @@
 [project]
 name = "allseer"
 version = "0.1.0"
-description = "An AI-powered diagnostics assistant for Kubernetes"
+description = "An read-only, AI-powered diagnostics assistant for Kubernetes"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "kubernetes>=32.0.1",
     "langchain-anthropic>=0.3.9",
     "langgraph>=0.3.5",
+]
+
+[dependency-groups]
+dev = [
+    "ruff>=0.9.9",
+]
+
+[tool.ruff.lint]
+select = [
+    # isort
+    "I",
 ]
