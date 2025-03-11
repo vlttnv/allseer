@@ -1,7 +1,7 @@
 [project]
-name = "osprei"
+name = "allseer"
 version = "0.1.0"
-description = "an AI-powered diagnostics assistant for Kubernetes"
+description = "An AI-powered diagnostics assistant for Kubernetes"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
