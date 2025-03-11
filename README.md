@@ -1,6 +1,6 @@
 # Allseer
 ## v0.1.0
-An read-only, AI-powered diagnostics assistant for Kubernetes.
+A read-only, AI-powered diagnostics assistant for Kubernetes.
 
 ## Installation
 
