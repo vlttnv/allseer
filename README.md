@@ -1,11 +1,15 @@
+<div style="text-align: center;">
+  <img src="./assets/logo.svg" alt="Allseer Logo" width="400" height="400" />
+</div>
+
 # Allseer
-## v0.1.0
-A read-only, AI-powered diagnostics assistant for Kubernetes.
+Allseer is read-only, AI-powered diagnostics assistant for Kubernetes that helps DevOps and SRE engineers troubleshoot issues, surface insights, and save time by analyzing cluster data and connecting the dots across resources.
 
 ## Installation
 
 ### Prerequisites
 
+- [k8s-mpc](https://github.com/vlttnv/k8s-mcp) - cloned locally
 - Python 3.8+
 - Access to a Kubernetes cluster (via kubeconfig or in-cluster configuration)
 - Required Python packages (see `dependencies` in `pyproject.toml`)
@@ -81,33 +85,7 @@ Here are some useful example prompts you can ask Claude about your Kubernetes cl
 - "Show me the logs for the failing pod"
 
 ## API Reference
-
-### Namespaces
-
-- `get_namespaces()`: List all available namespaces in the cluster
-
-### Pods
-
-- `list_pods(namespace=None)`: List all pods, optionally filtered by namespace
-- `failed_pods()`: List all pods in Failed or Error state
-- `pending_pods()`: List all pods in Pending state with reasons
-- `high_restart_pods(restart_threshold=5)`: Find pods with restart counts above threshold
-
-### Nodes
-
-- `list_nodes()`: List all nodes and their status
-- `node_capacity()`: Show available capacity on all nodes
-
-### Deployments & Services
-
-- `list_deployments(namespace=None)`: List all deployments
-- `list_services(namespace=None)`: List all services
-- `list_events(namespace=None)`: List all events
-
-### Resource Management
-
-- `orphaned_resources()`: List resources without owner references
-- `get_resource_yaml(namespace, resource_type, resource_name)`: Get YAML configuration for a specific resource
+The [k8s-mpc](https://github.com/vlttnv/k8s-mcp) server exposes a set of tools. For a full list check out the project's README or source code.
 
 ## License
 
@@ -116,9 +94,3 @@ Here are some useful example prompts you can ask Claude about your Kubernetes cl
 ## Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
-
-1. Fork the repository
-2. Create your feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
