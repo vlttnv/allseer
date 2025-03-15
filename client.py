@@ -1,19 +1,17 @@
 import asyncio
+import os
 from contextlib import AsyncExitStack
 from typing import Optional
 
 from anthropic import Anthropic
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
-
-from utils import configure_logging, get_logger
-
+from prompt_toolkit import PromptSession
+from prompt_toolkit.patch_stdout import patch_stdout
 from rich import print
 from rich.markdown import Markdown
 
-import os
-from prompt_toolkit import PromptSession
-from prompt_toolkit.patch_stdout import patch_stdout
+from utils import configure_logging, get_logger
 
 logger = get_logger(__name__)
 
@@ -109,7 +107,9 @@ class MCPClient:
                 if content.type == "text":
                     print(Markdown(content.text))
                     final_text.append(content.text)
-                    assistant_message_content.append({"type": "text", "text": content.text})
+                    assistant_message_content.append(
+                        {"type": "text", "text": content.text}
+                    )
                 elif content.type == "tool_use":
                     has_tool_calls = True
                     tool_name = content.name
@@ -119,32 +119,44 @@ class MCPClient:
                     result = await self.session.call_tool(tool_name, tool_args)
 
                     # Add to final text
-                    print(Markdown(f"[Calling tool `{tool_name}` with args `{tool_args}`]"))
-                    final_text.append(f"[Calling tool {tool_name} with args {tool_args}]")
+                    print(
+                        Markdown(
+                            f"[Calling tool `{tool_name}` with args `{tool_args}`]"
+                        )
+                    )
+                    final_text.append(
+                        f"[Calling tool {tool_name} with args {tool_args}]"
+                    )
                     final_text.append(f"[Tool result: {result.content[:100]}...]")
 
                     # Add the tool use to the conversation
-                    assistant_message_content.append({
-                        "type": "tool_use",
-                        "name": tool_name,
-                        "input": tool_args,
-                        "id": content.id
-                    })
+                    assistant_message_content.append(
+                        {
+                            "type": "tool_use",
+                            "name": tool_name,
+                            "input": tool_args,
+                            "id": content.id,
+                        }
+                    )
 
                     # Add assistant's message to the conversation
-                    self.messages.append({"role": "assistant", "content": assistant_message_content})
+                    self.messages.append(
+                        {"role": "assistant", "content": assistant_message_content}
+                    )
 
                     # Add tool response to the conversation
-                    self.messages.append({
-                        "role": "user",
-                        "content": [
-                            {
-                                "type": "tool_result",
-                                "tool_use_id": content.id,
-                                "content": result.content
-                            }
-                        ]
-                    })
+                    self.messages.append(
+                        {
+                            "role": "user",
+                            "content": [
+                                {
+                                    "type": "tool_result",
+                                    "tool_use_id": content.id,
+                                    "content": result.content,
+                                }
+                            ],
+                        }
+                    )
 
                     # Reset assistant message content for potential next tool calls
                     assistant_message_content = []
@@ -155,7 +167,9 @@ class MCPClient:
             # If no tool calls or we've processed all content, add the assistant message and exit
             if not has_tool_calls:
                 if assistant_message_content:
-                    self.messages.append({"role": "assistant", "content": assistant_message_content})
+                    self.messages.append(
+                        {"role": "assistant", "content": assistant_message_content}
+                    )
                 break
 
         return "\n".join(final_text)
@@ -184,7 +198,6 @@ class MCPClient:
     async def cleanup(self):
         """Clean up resources"""
         await self.exit_stack.aclose()
-
 
     def _print_logo(self):
         print("   _____  .__  .__                              ")

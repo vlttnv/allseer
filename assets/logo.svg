@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400">
+  <!-- Background -->
+  <rect width="400" height="400" rx="20" ry="20" fill="#f7f9fc" />
+
+  <!-- Kubernetes wheel (modified) -->
+  <g transform="translate(200, 180) scale(1.1)">
+    <circle cx="0" cy="0" r="75" fill="#326CE5" opacity="0.1" />
+    <!-- Kubernetes spokes -->
+    <g stroke="#326CE5" stroke-width="10" stroke-linecap="round">
+      <!-- 7 spokes for the Kubernetes wheel -->
+      <line x1="0" y1="-75" x2="0" y2="-105" />
+      <line x1="53" y1="-53" x2="74" y2="-74" />
+      <line x1="75" y1="0" x2="105" y2="0" />
+      <line x1="53" y1="53" x2="74" y2="74" />
+      <line x1="0" y1="75" x2="0" y2="105" />
+      <line x1="-53" y1="53" x2="-74" y2="74" />
+      <line x1="-75" y1="0" x2="-105" y2="0" />
+      <line x1="-53" y1="-53" x2="-74" y2="-74" />
+    </g>
+  </g>
+
+  <!-- AI/Eye iris -->
+  <circle cx="200" cy="180" r="55" fill="#326CE5" opacity="0.8" />
+
+  <!-- Eye pupil -->
+  <circle cx="200" cy="180" r="25" fill="#172B4D" />
+
+  <!-- AI network overlay -->
+  <g stroke="#4D6CFF" stroke-width="2" fill="none">
+    <circle cx="200" cy="180" r="38" />
+    <circle cx="200" cy="180" r="70" />
+
+    <!-- Connection dots -->
+    <circle cx="170" cy="150" r="4" fill="#4D6CFF" />
+    <circle cx="230" cy="150" r="4" fill="#4D6CFF" />
+    <circle cx="170" cy="210" r="4" fill="#4D6CFF" />
+    <circle cx="230" cy="210" r="4" fill="#4D6CFF" />
+    <circle cx="140" cy="180" r="4" fill="#4D6CFF" />
+    <circle cx="260" cy="180" r="4" fill="#4D6CFF" />
+    <circle cx="200" cy="120" r="4" fill="#4D6CFF" />
+    <circle cx="200" cy="240" r="4" fill="#4D6CFF" />
+
+    <!-- Connection lines -->
+    <line x1="170" y1="150" x2="200" y2="180" />
+    <line x1="230" y1="150" x2="200" y2="180" />
+    <line x1="170" y1="210" x2="200" y2="180" />
+    <line x1="230" y1="210" x2="200" y2="180" />
+    <line x1="140" y1="180" x2="175" y2="180" />
+    <line x1="260" y1="180" x2="225" y2="180" />
+    <line x1="200" y1="120" x2="200" y2="155" />
+    <line x1="200" y1="240" x2="200" y2="205" />
+  </g>
+
+  <!-- Text -->
+  <text x="200" y="340" font-family="Arial, sans-serif" font-weight="bold" font-size="42" text-anchor="middle" fill="#172B4D">ALLSEER</text>
+  <text x="200" y="370" font-family="Arial, sans-serif" font-size="18" text-anchor="middle" fill="#596780">AI-Powered Kubernetes Diagnostics</text>
+
+  <!-- Scanning effect -->
+  <g opacity="0.5">
+    <line x1="130" y1="180" x2="270" y2="180" stroke="#4D6CFF" stroke-width="2" stroke-dasharray="5,5" />
+  </g>
+</svg>
