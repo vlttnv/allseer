@@ -1,5 +1,5 @@
 import logging
-from typing import Literal
+from typing import Literal, Optional, Union
 
 
 def get_logger(name: str) -> logging.Logger:
@@ -8,6 +8,7 @@ def get_logger(name: str) -> logging.Logger:
 
 def configure_logging(
     level: Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"] = "INFO",
+    library_loggers: Optional[dict[str, Union[str, int]]] = None,
 ) -> None:
     handlers = []
     try:
@@ -26,3 +27,12 @@ def configure_logging(
         format="%(message)s",
         handlers=handlers,
     )
+
+    # Set specific levels for library loggers
+    if library_loggers:
+        for logger_name, logger_level in library_loggers.items():
+            logging.getLogger(logger_name).setLevel(
+                logger_level
+                if isinstance(logger_level, int)
+                else getattr(logging, logger_level)
+            )

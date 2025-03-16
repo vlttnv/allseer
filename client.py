@@ -130,9 +130,8 @@ class MCPClient:
             # Fallback to a basic prompt if file not found
             self.SYSTEM_PROMPT = "You are Allseer, an expert DevOps Engineer and SRE specializing in Kubernetes. Help troubleshoot issues and provide actionable solutions."
 
-
         # Configure logging
-        configure_logging("ERROR")
+        configure_logging("ERROR", library_loggers={"mcp": "ERROR"})
 
     async def connect_to_server(self, server_script_path: str):
         """Connect to an MCP server
