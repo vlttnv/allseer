@@ -164,10 +164,10 @@ class MCPClient:
         tools = response.tools
         logger.info("\nConnected to server with tools:", [tool.name for tool in tools])
 
-    async def process_query(self, query: str) -> str:
+    async def process_query(self, query: str):
         """Process a query using Claude and available tools"""
         self.messages.append({"role": "user", "content": query})
-        final_text = []
+        # final_text = []
 
         # Get available tools
         response = await self.session.list_tools()
@@ -182,7 +182,7 @@ class MCPClient:
 
         while True:
             # Call Claude API with system prompt only on first message
-            system = self.SYSTEM_PROMPT if not self.conversation_started else None
+            system = self.SYSTEM_PROMPT if not self.conversation_started else []
             self.conversation_started = True
 
             response = self.anthropic.messages.create(
@@ -203,7 +203,7 @@ class MCPClient:
             for content in response.content:
                 if content.type == "text":
                     print(Markdown(content.text))
-                    final_text.append(content.text)
+
                     assistant_message_content.append(
                         {"type": "text", "text": content.text}
                     )
@@ -223,10 +223,6 @@ class MCPClient:
                             f"[Calling tool `{tool_name}` with args `{tool_args}`]"
                         )
                     )
-                    final_text.append(
-                        f"[Calling tool {tool_name} with args {tool_args}]"
-                    )
-                    final_text.append(f"[Tool result: {result.content[:100]}...]")
 
                     # Add the tool use to the conversation
                     assistant_message_content.append(
@@ -271,7 +267,7 @@ class MCPClient:
                     )
                 break
 
-        return "\n".join(final_text)
+        return
 
     async def chat_loop(self):
         """Run an interactive chat loop"""
@@ -295,7 +291,7 @@ class MCPClient:
                     self.token_counter.display_stats()
                     continue
 
-                response = await self.process_query(query)
+                await self.process_query(query)
                 # Report current token usage after each interaction in logs
                 logger.info(
                     f"Session token usage so far: input={self.token_counter.input_tokens}, output={self.token_counter.output_tokens}"
