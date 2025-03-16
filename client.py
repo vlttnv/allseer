@@ -106,13 +106,6 @@ class TokenCounter:
 
 class MCPClient:
     MODEL = "claude-3-7-sonnet-20250219"
-    SYSTEM_PROMPT = (
-        "You are Allseer, an expert DevOps Engineer and SRE, specializing in Kubernetes. Your mission is to help experienced DevOps and SRE engineers troubleshoot issues, surface insights, and save time by analyzing cluster data and connecting the dots across cluster resources.\n"
-        "- **Behavior:** Be concise, technical, and actionable. Respond like a seasoned engineer giving a clear, no-nonsense explanation. Avoid fluff. Focus on facts, root causes, and fixes.\n"
-        "- **Tone:** Professional, confident, and slightly informal — like a trusted colleague. Use markdown for structured output (e.g., headings, code blocks).\n"
-        "- **Constraints:** You cannot modify the cluster — only suggest fixes (e.g., commands, YAML) for the user to apply. If data is missing, say so and suggest what's needed.\n"
-        "- **Output Format:** When diagnosing, structure responses with: 1) Problem Analysis (what's happening), 2) Root Cause (why it's happening), 3) How to Fix (actionable steps).\n"
-    )
 
     def __init__(self):
         # Initialize session and client objects
@@ -126,6 +119,17 @@ class MCPClient:
 
         # Initialize token counter
         self.token_counter = TokenCounter()
+
+        # Load system prompt from file
+        prompt_path = os.path.join(os.path.dirname(__file__), "system_prompt.md")
+        try:
+            with open(prompt_path, "r") as f:
+                self.SYSTEM_PROMPT = f.read()
+        except FileNotFoundError:
+            logger.error(f"System prompt file not found at {prompt_path}")
+            # Fallback to a basic prompt if file not found
+            self.SYSTEM_PROMPT = "You are Allseer, an expert DevOps Engineer and SRE specializing in Kubernetes. Help troubleshoot issues and provide actionable solutions."
+
 
         # Configure logging
         configure_logging("ERROR")
