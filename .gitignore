@@ -12,3 +12,6 @@ wheels/
 # .env files
 .env.local
 .evn
+
+# Other
+.DS_Store
