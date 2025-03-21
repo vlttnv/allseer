@@ -1,18 +1,22 @@
 import asyncio
 import os
 import time
+import json
 from contextlib import AsyncExitStack
 from typing import Any, Dict, Optional
 
-from anthropic import Anthropic
+from anthropic import AsyncAnthropic
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 from prompt_toolkit import PromptSession
 from prompt_toolkit.patch_stdout import patch_stdout
 from rich import print
 from rich.console import Console
+from rich.live import Live
 from rich.markdown import Markdown
+from rich.panel import Panel
 from rich.table import Table
+from rich.text import Text
 
 from utils import configure_logging, get_logger
 
@@ -111,7 +115,7 @@ class MCPClient:
         # Initialize session and client objects
         self.session: Optional[ClientSession] = None
         self.exit_stack = AsyncExitStack()
-        self.anthropic = Anthropic()
+        self.anthropic = AsyncAnthropic()
 
         # Initialize conversation history
         self.messages = []
@@ -165,9 +169,8 @@ class MCPClient:
         logger.info("\nConnected to server with tools:", [tool.name for tool in tools])
 
     async def process_query(self, query: str):
-        """Process a query using Claude and available tools"""
+        """Process a query using Claude and available tools with streaming responses"""
         self.messages.append({"role": "user", "content": query})
-        # final_text = []
 
         # Get available tools
         response = await self.session.list_tools()
@@ -180,109 +183,167 @@ class MCPClient:
             for tool in response.tools
         ]
 
+        # Process through multiple API calls if tools are used
         while True:
-            # Call Claude API with system prompt only on first message
-            system = self.SYSTEM_PROMPT if not self.conversation_started else []
+            # Set system prompt only on first message
+            system = self.SYSTEM_PROMPT if not self.conversation_started else ""
             self.conversation_started = True
 
-            response = self.anthropic.messages.create(
-                model=self.MODEL,
-                max_tokens=1000,
-                messages=self.messages,
-                system=system,
-                tools=available_tools,
-            )
-
-            # Track tokens from the API response
-            self.token_counter.track_request(response)
-
-            has_tool_calls = False
+            # Initialize collection variables
             assistant_message_content = []
+            has_tool_calls = False
+            current_text_chunk = ""
 
-            # Process each content block in the response
-            for content in response.content:
-                if content.type == "text":
-                    print(Markdown(content.text))
+            # Use Rich's Live display for updating content in-place
+            with Live(
+                Panel("", title="Allseer", title_align="left", border_style="blue", expand=False),
+                console=console,
+                refresh_per_second=10,
+                transient=False
+            ) as live_display:
+                # Create a streaming response using AsyncAnthropic with stream context manager
+                async with self.anthropic.messages.stream(
+                    model=self.MODEL,
+                    max_tokens=1000,
+                    messages=self.messages,
+                    system=system,
+                    tools=available_tools,
+                ) as stream:
+                    try:
+                        # Process each event in the stream
+                        async for event in stream:
+                            if event.type == "message_start":
+                                # Track tokens from the API response
+                                if hasattr(event, "message") and hasattr(event.message, "usage"):
+                                    self.token_counter.track_request(event.message)
 
-                    assistant_message_content.append(
-                        {"type": "text", "text": content.text}
-                    )
-                elif content.type == "tool_use":
-                    has_tool_calls = True
-                    self.token_counter.track_tool_call()
+                            elif event.type == "content_block_start":
+                                if event.content_block.type == "text":
+                                    current_text_chunk = ""
 
-                    tool_name = content.name
-                    tool_args = content.input
+                            elif event.type == "text":
+                                # Build the text as it streams in
+                                current_text_chunk += event.text
+                                # Update the live display with new text
+                                live_display.update(
+                                    Panel(Markdown(current_text_chunk), title="Allseer", title_align="left", border_style="blue")
+                                )
 
-                    # Execute tool call
-                    result = await self.session.call_tool(tool_name, tool_args)
+                            elif event.type == "content_block_stop":
+                                if event.content_block.type == "text":
+                                    # Add final text block to message content
+                                    assistant_message_content.append({
+                                        "type": "text",
+                                        "text": current_text_chunk
+                                    })
 
-                    # Add to final text
-                    print(
-                        Markdown(
-                            f"[Calling tool `{tool_name}` with args `{tool_args}`]"
-                        )
-                    )
+                                elif event.content_block.type == "tool_use":
+                                    has_tool_calls = True
+                                    tool_block = event.content_block
+                                    self.token_counter.track_tool_call()
 
-                    # Add the tool use to the conversation
-                    assistant_message_content.append(
-                        {
-                            "type": "tool_use",
-                            "name": tool_name,
-                            "input": tool_args,
-                            "id": content.id,
-                        }
-                    )
+                                    # Display tool call information in the console (outside the live display)
+                                    live_display.stop()
+                                    console.print(Panel(
+                                        f"Tool: {tool_block.name}\nInput: {tool_block.input}",
+                                        title="Tool Call",
+                                        title_align="left",
+                                        border_style="yellow"
+                                    ))
 
-                    # Add assistant's message to the conversation
-                    self.messages.append(
-                        {"role": "assistant", "content": assistant_message_content}
-                    )
+                                    # Add the tool use to the message content
+                                    assistant_message_content.append({
+                                        "type": "tool_use",
+                                        "name": tool_block.name,
+                                        "input": tool_block.input,
+                                        "id": tool_block.id,
+                                    })
 
-                    # Add tool response to the conversation
-                    self.messages.append(
-                        {
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "tool_result",
-                                    "tool_use_id": content.id,
-                                    "content": result.content,
-                                }
-                            ],
-                        }
-                    )
+                                    # Execute tool call
+                                    result = await self.session.call_tool(tool_block.name, tool_block.input)
 
-                    # Reset assistant message content for potential next tool calls
-                    assistant_message_content = []
+                                    # Display tool result in a panel with proper formatting
+                                    try:
+                                        # Try to format as nice JSON if possible
+                                        formatted_result = json.dumps(json.loads(result.content[0].text), indent=2)
+                                        console.print(Panel(
+                                            Markdown(f"```json\n{formatted_result}\n```"),
+                                            title="Tool Result",
+                                            title_align="left",
+                                            border_style="green"
+                                        ))
+                                    except:
+                                        # Fallback to plain text if not valid JSON
+                                        console.print(Panel(
+                                            Markdown(result.content[0].text),
+                                            title="Tool Result",
+                                            title_align="left",
+                                            border_style="green"
+                                        ))
 
-                    # Break out of the current response processing to get Claude's next response
-                    break
+                                    # Add assistant's message to the conversation
+                                    self.messages.append({
+                                        "role": "assistant",
+                                        "content": assistant_message_content
+                                    })
 
-            # If no tool calls or we've processed all content, add the assistant message and exit
+                                    # Add tool response to the conversation
+                                    self.messages.append({
+                                        "role": "user",
+                                        "content": [{
+                                            "type": "tool_result",
+                                            "tool_use_id": tool_block.id,
+                                            "content": result.content,
+                                        }],
+                                    })
+
+                                    # Exit the stream processing loop after handling a tool call
+                                    # We'll start a new stream to get Claude's response to the tool result
+                                    await stream.close()
+                                    break
+
+                            elif event.type == "message_stop":
+                                # Get final message details for token tracking if available
+                                if hasattr(event, "message") and hasattr(event.message, "usage"):
+                                    self.token_counter.track_request(event.message)
+
+                    except Exception as e:
+                        logger.error(f"Error during streaming: {str(e)}")
+                        live_display.stop()
+                        console.print(Panel(
+                            f"Error during streaming: {str(e)}",
+                            title="Error",
+                            title_align="left",
+                            border_style="red"
+                        ))
+                        # Still track the request even if there was an error
+                        self.token_counter.request_count += 1
+
+            # If no tool calls or all content processed, add the assistant message and exit
             if not has_tool_calls:
                 if assistant_message_content:
-                    self.messages.append(
-                        {"role": "assistant", "content": assistant_message_content}
-                    )
+                    self.messages.append({
+                        "role": "assistant",
+                        "content": assistant_message_content
+                    })
                 break
 
-        return
+            # Continue the loop to process Claude's response to the tool result
 
     async def chat_loop(self):
         """Run an interactive chat loop"""
         self._print_logo()
-        print("\nAlsseer: an AI-powered diagnostics assistant for Kubernetes.")
-        print("Type your queries, 'stats' to see token usage, or 'quit' to exit.")
+        console.print("\nAllseer: an AI-powered diagnostics assistant for Kubernetes.")
+        console.print("Type your queries, 'stats' to see token usage, or 'quit' to exit.")
 
         while True:
             try:
                 with patch_stdout():
-                    query = await prompt_session.prompt_async("> ")
+                    query = await prompt_session.prompt_async("\n> ")
 
                 if query.lower() in ["quit", "exit"]:
                     # Display final stats before exiting
-                    print("\nFinal Usage Statistics:")
+                    console.print("\nFinal Usage Statistics:")
                     self.token_counter.display_stats()
                     break
 
@@ -299,18 +360,26 @@ class MCPClient:
 
             except Exception as e:
                 logger.error(f"\nError: {str(e)}")
+                console.print(Panel(
+                    f"Error: {str(e)}",
+                    title="Error",
+                    title_align="left",
+                    border_style="red"
+                ))
 
     async def cleanup(self):
         """Clean up resources"""
         await self.exit_stack.aclose()
 
     def _print_logo(self):
-        print("   _____  .__  .__                              ")
-        print("  /  _  \ |  | |  |   ______ ____   ___________ ")
-        print(" /  /_\  \|  | |  |  /  ___// __ \_/ __ \_  __ \\")
-        print("/    |    \  |_|  |__\___ \\\\  ___/\  ___/|  | \/")
-        print("\____|__  /____/____/____  >\___  >\___  >__|   ")
-        print("        \/               \/     \/     \/       ")
+        logo = """   _____  .__  .__
+  /  _  \ |  | |  |   ______ ____   ___________
+ /  /_\  \|  | |  |  /  ___// __ \_/ __ \_  __ \\
+/    |    \  |_|  |__\___ \\\\  ___/\  ___/|  | \/
+\____|__  /____/____/____  >\___  >\___  >__|
+        \/               \/     \/     \/       """
+
+        console.print(Panel(Text(logo, style="bold blue"), border_style="blue"))
 
 
 async def main():
